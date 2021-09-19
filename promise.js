@@ -11,6 +11,10 @@ const FULFILLED = 1;
 const REJECTED = 2;
 
 function MyPromise(executor) {
+  if (!new.target) {
+    throw TypeError('Promise must be called with new operator')
+  }
+
   const self = this;
 
   let state = PENDING,
@@ -120,7 +124,7 @@ function wrap(Constructor) {
   Constructor.deferred = () => {
     let resolve, reject;
 
-    const promise = new Constructor((resolve1, reject1) => {
+    const promise = Constructor((resolve1, reject1) => {
       resolve = resolve1;
       reject = reject1;
     });
