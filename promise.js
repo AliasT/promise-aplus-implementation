@@ -1,10 +1,8 @@
 // https://www.ituring.com.cn/article/66566
-
+// prettier-ignore
 // 重要过程：
 // 1. executor 的两个参数 resolve， 只能调用一次
 // 2. 已经fulfill 无法变更到其他状态
-
-const promisesAplusTests = require("promises-aplus-tests");
 
 const PENDING = 0;
 const FULFILLED = 1;
@@ -12,7 +10,7 @@ const REJECTED = 2;
 
 function MyPromise(executor) {
   if (!new.target) {
-    throw TypeError('Promise must be called with new operator')
+    throw TypeError("Promise must be called with new operator");
   }
 
   const self = this;
@@ -117,31 +115,43 @@ function MyPromise(executor) {
     return deferred.promise;
   };
 
+  // 虽然执行效果和使用 then 的第二个参数相同，
+  // 但是链式调用额外生成了一个新的 promise
   this.catch = self.then.bind(null, null);
+
+  // 忽略 callback 的类型
+  // 均以 undefined 作为参数执行 callback
+  // 实际情况来看，回调执行顺序和 finally 与 then 的调用顺序有关
+  this.finally = function onFinally(callback) {
+    return this.then(
+      (value) => (callback(), value),
+      () => callback()
+    );
+  };
 }
 
 function wrap(Constructor) {
   Constructor.deferred = () => {
     let resolve, reject;
 
-    const promise = Constructor((resolve1, reject1) => {
-      resolve = resolve1;
-      reject = reject1;
+    const promise = new Constructor((resolve1, reject1) => {
+      (resolve = resolve1), (reject = reject1);
     });
 
-    return {
-      resolve,
-      reject,
-      promise,
-    };
+    return { resolve, reject, promise };
+  };
+
+  Constructor.resolve = function (value) {
+    const deferred = Constructor.deferred();
+    return deferred.resolve(value), deferred.promise;
+  };
+
+  Constructor.reject = function (reason) {
+    const deferred = Constructor.deferred();
+    return deferred.reject(reason), deferred.promise;
   };
 
   return Constructor;
 }
 
-exports.wrap = wrap;
-exports.MyPromise = wrap(MyPromise);
-
-if (require.main === module) {
-  promisesAplusTests(exports.MyPromise, function (err) {});
-}
+module.exports = wrap(MyPromise);
