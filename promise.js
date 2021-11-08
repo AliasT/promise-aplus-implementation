@@ -14,12 +14,9 @@ function MyPromise(executor) {
   }
 
   const self = this;
-
-  let state = PENDING,
-    value = null,
-    processing = false,
-    sTasks = [],
-    eTasks = [];
+  // prettier-ignore
+  let state = PENDING, value = null, processing = false, sTasks = [], eTasks = [];
+  
 
   const once = (method) => (value) => {
     if (processing) return;
@@ -27,16 +24,21 @@ function MyPromise(executor) {
   };
 
   try {
+    // once: 作为exector的函数参数：resolve和reject只能执行一次
     executor(once(fulfill), once(reject));
   } catch (error) {
+    // executor 执行的过程中发生的错误将导致 promise rejection
     if (!processing) reject(error);
   }
 
   function fulfill(thenable) {
     // resolve 对象不能是 promise 本身
     if (self === thenable) reject(TypeError());
+    
+    // promise 的状态一旦确定，将不能改变
     if (state === REJECTED || state === FULFILLED) return;
-
+    
+    // 如果 resolve 的是一个 promise 实例，将以该 promise 的结果 resolve 当前promise
     if (thenable instanceof self.constructor)
       return thenable.then.call(thenable, fulfill, reject);
 
@@ -46,9 +48,10 @@ function MyPromise(executor) {
     ) {
       let then;
       try {
-        // 直接使用 thenable.then 会多次触发 getter
+        // 直接使用 thenable.then 会多次触发 Getter
         then = thenable.then;
       } catch (error) {
+        // 取 then 的时候报错，如果 promise 的状态此时仍是 pending，返回以该错误为 reason 的新 promise
         if (state === PENDING) {
           return new self.constructor((_, reject) => reject(error)).then(
             fulfill,
@@ -56,6 +59,7 @@ function MyPromise(executor) {
           );
         }
       }
+      // 如果 then 是一个thenable，构造一个 promise，以 resolve 和 reject 作为参数
       if (typeof then === "function")
         return new self.constructor(then.bind(thenable)).then(fulfill, reject);
     }
@@ -83,6 +87,7 @@ function MyPromise(executor) {
   }
 
   this.then = function (onFulfilled, onRejected) {
+    // then 的调用将总是产生一个新的 promise
     const deferred = self.constructor.deferred();
 
     sTasks.push((value) => {
